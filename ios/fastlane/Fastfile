@@ -66,4 +66,9 @@ platform :ios do
   lane :build do
     build_app(workspace: "emurgo.xcworkspace", scheme: "emurgo")
   end
+
+  desc "Builds the nightly project. For CI."
+  lane :build_nightly do
+    build_app(workspace: "emurgo.xcworkspace", scheme: "emurgo-nightly")
+  end
 end

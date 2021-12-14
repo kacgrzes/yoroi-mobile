@@ -36,6 +36,11 @@ Push a new mainnet build to TestFlight
 fastlane ios build
 ```
 Builds the project. Useful to verify a succesful compilation.
+### ios build_nightly
+```
+fastlane ios build_nightly
+```
+Builds the nightly project. For CI.
 
 ----
 
