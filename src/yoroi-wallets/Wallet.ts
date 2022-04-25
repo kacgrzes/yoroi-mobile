@@ -16,6 +16,7 @@ import type {EncryptionMethod} from '../legacy/types'
 import {NetworkId, WalletImplementationId, YoroiProvider} from './cardano'
 import {AddressChain, AddressChainJSON} from './cardano/chain'
 import {TransactionCache, TransactionCacheJSON} from './cardano/shelley/transactionCache'
+import {WalletStorage} from './storage'
 import {validatePassword} from './utils/validators'
 
 type WalletState = {
@@ -61,6 +62,8 @@ export class Wallet {
   isReadOnly: undefined | boolean
 
   provider: null | undefined | YoroiProvider
+
+  store: undefined | WalletStorage
 
   isEasyConfirmationEnabled = false
 

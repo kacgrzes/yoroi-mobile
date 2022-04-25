@@ -6,10 +6,12 @@ import {useSelector} from 'react-redux'
 
 import {Text} from '../../components'
 import features from '../../features'
+import {useSubmittedTxs} from '../../hooks'
 import {actionMessages} from '../../i18n/global-messages'
 import {formatDateRelative} from '../../legacy/format'
 import {TransactionInfo} from '../../legacy/HistoryTransaction'
 import {transactionsInfoSelector} from '../../legacy/selectors'
+import {useSelectedWallet} from '../../SelectedWallet'
 import {useOnScroll} from '../useOnScroll'
 import {ActionsBanner} from './ActionsBanner'
 import {EmptyHistory} from './EmptyHistory'
@@ -23,9 +25,11 @@ type Props = Partial<ListProps> & {
 }
 export const TxHistoryList = ({onScrollUp, onScrollDown, ...props}: Props) => {
   const strings = useStrings()
+  const wallet = useSelectedWallet()
+  const submittedTxs = useSubmittedTxs({wallet})
 
   const transactionsInfo = useSelector(transactionsInfoSelector)
-  const groupedTransactions = getTransactionsByDate(transactionsInfo)
+  const groupedTransactions = getTransactionsByDate({...transactionsInfo, ...submittedTxs})
 
   const onScroll = useOnScroll({onScrollUp, onScrollDown})
 

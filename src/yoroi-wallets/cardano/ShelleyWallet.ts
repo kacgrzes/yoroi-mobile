@@ -21,6 +21,7 @@ import {Logger} from '../../legacy/logging'
 import type {CardanoHaskellShelleyNetwork} from '../../legacy/networks'
 import {isHaskellShelleyNetwork, PROVIDERS} from '../../legacy/networks'
 import type {WalletMeta} from '../../legacy/state'
+import storage from '../../legacy/storage'
 import type {BackendConfig} from '../../legacy/types'
 import type {
   AccountStateResponse,
@@ -37,6 +38,7 @@ import type {AddressedUtxo, Addressing} from '../../legacy/types'
 import {NETWORK_REGISTRY} from '../../legacy/types'
 import {deriveRewardAddressHex, normalizeToAddress, toHexOrBase58} from '../../legacy/utils'
 import {DefaultTokenEntry, SendTokenList} from '../../types'
+import {walletStorage} from '../storage'
 import {genTimeToSlot} from '../utils/timeUtils'
 import {versionCompare} from '../utils/versioning'
 import Wallet, {WalletJSON} from '../Wallet'
@@ -288,6 +290,7 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
   async restore(data: WalletJSON, walletMeta: WalletMeta) {
     Logger.info('restore wallet', walletMeta.name)
     assert.assert(!this.isInitialized, 'restoreWallet: !isInitialized')
+    this.store = walletStorage({walletId: walletMeta.id, db: storage})
 
     await this._runMigrations(data, walletMeta)
 

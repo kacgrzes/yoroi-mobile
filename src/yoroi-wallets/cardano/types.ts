@@ -25,6 +25,7 @@ import {
   StakingStatus,
   TokenInfo,
 } from '../../types'
+import {WalletStorage} from '../storage'
 import Wallet from '../Wallet'
 import type {Addresses} from './chain'
 import {AddressChain} from './chain'
@@ -75,6 +76,8 @@ export interface WalletInterface {
   transactionCache: null | TransactionCache
 
   checksum: undefined | WalletChecksum
+
+  store: undefined | WalletStorage
 
   // =================== getters =================== //
 
@@ -271,61 +274,64 @@ export const isYoroiWallet = (wallet: unknown): wallet is YoroiWallet => {
 }
 
 type YoroiWalletKeys =
-  | 'id'
-  | 'networkId'
-  | 'checksum'
-  | 'provider'
-  | 'isHW'
-  | 'isEasyConfirmationEnabled'
-  | 'walletImplementationId'
-  | 'isReadOnly'
-  | 'fetchTokenInfo'
   | 'changePassword'
-  | 'fetchTxStatus'
   | 'checkServerStatus'
-  | 'subscribeOnTxHistoryUpdate'
-  | 'getAllUtxosForKey'
-  | 'fetchUTXOs'
-  | 'fetchAccountState'
-  | 'getDelegationStatus'
-  | 'rewardAddressHex'
+  | 'checksum'
   | 'createDelegationTx'
-  | 'createWithdrawalTx'
   | 'createVotingRegTx'
-  | 'submitTransaction'
+  | 'createWithdrawalTx'
+  | 'fetchAccountState'
+  | 'fetchPoolInfo'
+  | 'fetchTokenInfo'
+  | 'fetchTxStatus'
+  | 'fetchUTXOs'
+  | 'getAllUtxosForKey'
+  | 'getDelegationStatus'
+  | 'id'
+  | 'isEasyConfirmationEnabled'
+  | 'isHW'
+  | 'isReadOnly'
+  | 'networkId'
+  | 'provider'
+  | 'publicKeyHex'
+  | 'rewardAddressHex'
   | 'signTx'
   | 'signTxWithLedger'
-  | 'fetchPoolInfo'
-  | 'publicKeyHex'
+  | 'store'
+  | 'submitTransaction'
   | 'subscribe'
+  | 'subscribeOnTxHistoryUpdate'
+  | 'walletImplementationId'
 
 const yoroiWalletKeys: Array<YoroiWalletKeys> = [
-  'id',
-  'networkId',
+  'changePassword',
+  'checkServerStatus',
   'checksum',
+  'createDelegationTx',
+  'createVotingRegTx',
+  'createWithdrawalTx',
+  'fetchAccountState',
+  'fetchPoolInfo',
+  'fetchTokenInfo',
+  'fetchTxStatus',
+  'fetchUTXOs',
+  'getAllUtxosForKey',
+  'getDelegationStatus',
+  'id',
+  'isEasyConfirmationEnabled',
+  'isHW',
+  'isReadOnly',
+  'networkId',
   'provider',
   'publicKeyHex',
-  'isHW',
-  'isEasyConfirmationEnabled',
-  'walletImplementationId',
-  'isReadOnly',
-  'fetchTokenInfo',
-  'changePassword',
-  'fetchTxStatus',
-  'checkServerStatus',
-  'subscribeOnTxHistoryUpdate',
-  'getAllUtxosForKey',
-  'fetchUTXOs',
-  'fetchAccountState',
-  'getDelegationStatus',
   'rewardAddressHex',
-  'createDelegationTx',
-  'createWithdrawalTx',
-  'createVotingRegTx',
-  'submitTransaction',
   'signTx',
   'signTxWithLedger',
-  'fetchPoolInfo',
+  'store',
+  'submitTransaction',
+  'subscribe',
+  'subscribeOnTxHistoryUpdate',
+  'walletImplementationId',
 ]
 
 export * from '@emurgo/yoroi-lib-core/dist/internals/wasm-contract'

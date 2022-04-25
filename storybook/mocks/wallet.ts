@@ -15,6 +15,23 @@ export const mockWallet: YoroiWallet = {
   provider: null,
   publicKeyHex: 'publicKeyHex',
 
+  store: {
+    submittedTx: {
+      getAll: () => {
+        throw new Error('Not implemented')
+      },
+      getById: () => {
+        throw new Error('Not implemented')
+      },
+      removeById: () => {
+        throw new Error('Not implemented')
+      },
+      save: () => {
+        throw new Error('Not implemented')
+      },
+    },
+  },
+
   createDelegationTx: () => {
     throw new Error('not implemented: createDelegationTx')
   },

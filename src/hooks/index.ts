@@ -17,6 +17,7 @@ import {Token} from '../types'
 import {
   NetworkId,
   SignedTx,
+  SubmittedTx,
   TxSubmissionStatus,
   WalletImplementationId,
   walletManager,
@@ -278,6 +279,24 @@ export const useCreateWallet = (options?: UseMutationOptions<YoroiWallet, Error,
   }
 }
 
+export const useSubmittedTxs = ({wallet}: {wallet: YoroiWallet}) => {
+  const query = useQuery({
+    queryKey: [wallet.id, 'submittedTxs'],
+    queryFn: async () => {
+      const data = await wallet.store?.submittedTx.getAll()
+      const result: Record<string, SubmittedTx> = {}
+
+      data?.reduce<Record<string, SubmittedTx>>((acc, r) => {
+        acc[r.id] = r
+        return acc
+      }, result)
+      return result
+    },
+  })
+
+  return query.data
+}
+
 export const useSubmitTx = (
   {wallet}: {wallet: YoroiWallet},
   options: UseMutationOptions<TxSubmissionStatus, Error, SignedTx> = {},
@@ -285,6 +304,21 @@ export const useSubmitTx = (
   const mutation = useMutationWithInvalidations({
     mutationFn: async (signedTx) => {
       const serverStatus = await wallet.checkServerStatus()
+      await wallet.store?.submittedTx.save({
+        id: signedTx.id,
+        amount: [{amount: '1', identifier: '', isDefault: true, networkId: wallet.networkId}],
+        direction: 'SENT',
+        fee: [{amount: '1', identifier: '', isDefault: true, networkId: wallet.networkId}],
+        status: 'Pending',
+        submittedAt: '2022-04-21T11:41:39.000Z',
+        assurance: 'PENDING',
+        inputs: [],
+        outputs: [],
+        confirmations: 0,
+        delta: [],
+        lastUpdatedAt: '2022-04-21T11:41:39.000Z',
+        tokens: {},
+      })
       await wallet.submitTransaction(signedTx.base64)
 
       if (serverStatus.isQueueOnline) {
@@ -295,7 +329,7 @@ export const useSubmitTx = (
         status: 'SUCCESS',
       } as TxSubmissionStatus
     },
-    invalidateQueries: [[wallet.id, 'pendingTxs']],
+    invalidateQueries: [[wallet.id, 'submittedTxs']],
     ...options,
   })
 
