@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {SignedTx, UnsignedTx} from '@emurgo/yoroi-lib-core'
 import {delay} from 'bluebird'
+import cryptoRandomString from 'crypto-random-string'
 import {
   QueryKey,
   useMutation,
@@ -10,14 +12,18 @@ import {
   UseQueryOptions,
 } from 'react-query'
 
+import {CONFIG} from '../legacy/config'
 import {HWDeviceInfo} from '../legacy/ledgerUtils'
 import {WalletMeta} from '../legacy/state'
 import storage from '../legacy/storage'
+import {Storage} from '../Storage'
 import {Token} from '../types'
 import {
+  decryptWithPassword,
+  encryptWithPassword,
   NetworkId,
-  SignedTx,
   SubmittedTx,
+  SubmittedTxs,
   TxSubmissionStatus,
   WalletImplementationId,
   walletManager,
@@ -57,10 +63,10 @@ export const useWalletName = (wallet: YoroiWallet, options?: UseQueryOptions<str
 export const useChangeWalletName = (wallet: YoroiWallet, options: UseMutationOptions<void, Error, string> = {}) => {
   const mutation = useMutationWithInvalidations<void, Error, string>({
     mutationFn: async (newName) => {
-      const walletMeta = await storage.read<WalletMeta>(`/wallets/${wallet.id}`)
+      const walletMeta = await storage.read<WalletMeta>(`/wallet/${wallet.id}`)
       if (!walletMeta) throw new Error('Invalid wallet id')
 
-      return storage.write(`/wallets/${wallet.id}`, {...walletMeta, name: newName})
+      return storage.write(`/wallet/${wallet.id}`, {...walletMeta, name: newName})
     },
     invalidateQueries: [[wallet.id, 'name'], ['walletMetas']],
     ...options,
@@ -192,6 +198,58 @@ export const usePlate = ({networkId, publicKeyHex}: {networkId: NetworkId; publi
 }
 
 // WALLET MANAGER
+export const useCreatePin = (storage: Storage, options: UseMutationOptions<void, Error, string>) => {
+  const mutation = useMutation({
+    mutationFn: async (pin) => {
+      const installationId = await storage.getItem('/appSettings/installationId')
+      if (!installationId) throw new Error('Invalid installation id')
+      const installationIdHex = Buffer.from(installationId, 'utf-8').toString('hex')
+      const pinHex = Buffer.from(pin, 'utf-8').toString('hex')
+      const saltHex = cryptoRandomString({length: 2 * 32})
+      const nonceHex = cryptoRandomString({length: 2 * 12})
+      const encryptedPinHash = await encryptWithPassword(pinHex, saltHex, nonceHex, installationIdHex)
+
+      return storage.setItem(ENCRYPTED_PIN_HASH_KEY, JSON.stringify(encryptedPinHash))
+    },
+    ...options,
+  })
+
+  return {
+    createPin: mutation.mutate,
+    ...mutation,
+  }
+}
+
+export const useCheckPin = (storage: Storage, options: UseMutationOptions<boolean, Error, string> = {}) => {
+  const mutation = useMutation({
+    mutationFn: (pin) =>
+      Promise.resolve(ENCRYPTED_PIN_HASH_KEY)
+        .then(storage.getItem)
+        .then((data) => {
+          if (!data) throw new Error('missing pin')
+          return data
+        })
+        .then(JSON.parse)
+        .then((encryptedPinHash: string) => decryptWithPassword(toHex(pin), encryptedPinHash))
+        .then(() => true)
+        .catch((error) => {
+          if (error.message === 'Decryption error') return false
+          throw error
+        }),
+    retry: false,
+    ...options,
+  })
+
+  return {
+    checkPin: mutation.mutate,
+    isValid: mutation.data,
+    ...mutation,
+  }
+}
+
+const ENCRYPTED_PIN_HASH_KEY = '/appSettings/customPinHash'
+const toHex = (text: string) => Buffer.from(text, 'utf8').toString('hex')
+
 export const useWalletNames = () => {
   return useWalletMetas<Array<string>>({
     select: (walletMetas) => walletMetas.map((walletMeta) => walletMeta.name),
@@ -279,11 +337,69 @@ export const useCreateWallet = (options?: UseMutationOptions<YoroiWallet, Error,
   }
 }
 
-export const useSubmittedTxs = ({wallet}: {wallet: YoroiWallet}) => {
+const failedStatus: Array<TxSubmissionStatus['status']> = ['FAILED', 'MAX_RETRY_REACHED']
+const pendingTxTtlMs = 7200 * 1000
+export async function syncSubmittedTxs(wallet: YoroiWallet) {
+  if (!wallet.store) throw new Error('Invalid wallet state')
+  const submittedTxs = await wallet.store.submittedTxs.getAll()
+  const pendingTxs = submittedTxs.filter((r) => r.assurance === 'PENDING').map((_, idx) => idx)
+
+  const toRemove: Array<number> = []
+  let hasUpdates = false
+
+  if (submittedTxs.length && pendingTxs.length) {
+    const serverTime = (await wallet.checkServerStatus())?.serverTime
+    const time = serverTime ? new Date(serverTime).getTime() : new Date().getTime()
+
+    const txStatus = await wallet.fetchTxStatus({
+      txHashes: pendingTxs.map((idx) => submittedTxs[idx].id),
+    })
+    const {depth, submissionStatus} = txStatus
+
+    for (const idx of pendingTxs) {
+      if (submissionStatus) {
+        if (failedStatus.includes(submissionStatus[submittedTxs[idx].id]?.submissionStatus)) {
+          submittedTxs[idx].assurance = 'FAILED'
+          submittedTxs[idx].status = 'Failed'
+          hasUpdates = true
+          continue
+        }
+      }
+      if (depth) {
+        if (depth[submittedTxs[idx].id]) {
+          const confirmations = depth[submittedTxs[idx].id]
+          if (confirmations >= CONFIG.ASSURANCE_LEVELS.MEDIUM) {
+            toRemove.push(idx)
+            hasUpdates = true
+          }
+          continue
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const expired = Math.abs(time - new Date(submittedTxs[idx].submittedAt!).getTime()) > pendingTxTtlMs
+      if (expired) {
+        submittedTxs[idx].assurance = 'FAILED'
+        submittedTxs[idx].status = 'Failed'
+        hasUpdates = true
+      }
+    }
+  }
+
+  if (!hasUpdates) return submittedTxs
+
+  const synchronizedTxs: SubmittedTxs = submittedTxs.filter((_, idx) => !toRemove.includes(idx))
+  await wallet.store.submittedTxs.saveAll(synchronizedTxs)
+  return wallet.store.submittedTxs.getAll()
+}
+
+export const useSubmittedTxs = (
+  {wallet}: {wallet: YoroiWallet},
+  options?: UseQueryOptions<Record<string, SubmittedTx>, Error>,
+) => {
   const query = useQuery({
     queryKey: [wallet.id, 'submittedTxs'],
     queryFn: async () => {
-      const data = await wallet.store?.submittedTx.getAll()
+      const data = await syncSubmittedTxs(wallet)
       const result: Record<string, SubmittedTx> = {}
 
       data?.reduce<Record<string, SubmittedTx>>((acc, r) => {
@@ -292,6 +408,7 @@ export const useSubmittedTxs = ({wallet}: {wallet: YoroiWallet}) => {
       }, result)
       return result
     },
+    ...options,
   })
 
   return query.data
@@ -299,27 +416,13 @@ export const useSubmittedTxs = ({wallet}: {wallet: YoroiWallet}) => {
 
 export const useSubmitTx = (
   {wallet}: {wallet: YoroiWallet},
-  options: UseMutationOptions<TxSubmissionStatus, Error, SignedTx> = {},
+  options: UseMutationOptions<TxSubmissionStatus, Error, {signedTx: SignedTx; unsignedTx?: UnsignedTx}> = {},
 ) => {
   const mutation = useMutationWithInvalidations({
-    mutationFn: async (signedTx) => {
+    mutationFn: async ({signedTx, unsignedTx}) => {
       const serverStatus = await wallet.checkServerStatus()
-      await wallet.store?.submittedTx.save({
-        id: signedTx.id,
-        amount: [{amount: '1', identifier: '', isDefault: true, networkId: wallet.networkId}],
-        direction: 'SENT',
-        fee: [{amount: '1', identifier: '', isDefault: true, networkId: wallet.networkId}],
-        status: 'Pending',
-        submittedAt: '2022-04-21T11:41:39.000Z',
-        assurance: 'PENDING',
-        inputs: [],
-        outputs: [],
-        confirmations: 0,
-        delta: [],
-        lastUpdatedAt: '2022-04-21T11:41:39.000Z',
-        tokens: {},
-      })
-      await wallet.submitTransaction(signedTx.base64)
+
+      await wallet.submitTransaction(signedTx, unsignedTx)
 
       if (serverStatus.isQueueOnline) {
         return fetchTxStatus(wallet, signedTx.id, false)

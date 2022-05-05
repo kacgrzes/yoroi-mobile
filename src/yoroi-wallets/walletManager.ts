@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {WalletChecksum} from '@emurgo/cip4-js'
 import {legacyWalletChecksum, walletChecksum} from '@emurgo/cip4-js'
+import {SignedTx, TxMetadata, UnsignedTx} from '@emurgo/yoroi-lib-core'
 import {BigNumber} from 'bignumber.js'
 import ExtendableError from 'es6-error'
 import _ from 'lodash'
@@ -28,9 +29,8 @@ import type {
 } from '../legacy/types'
 import type {EncryptionMethod} from '../legacy/types'
 import {NETWORK_REGISTRY, WALLET_IMPLEMENTATION_REGISTRY} from '../legacy/types'
-import {SendTokenList, StakePoolInfosAndHistories} from '../types'
+import {SendTokenList, StakePoolInfosAndHistories, Token} from '../types'
 import {
-  DefaultTokenEntry,
   isYoroiWallet,
   NetworkId,
   ServerStatus,
@@ -40,7 +40,6 @@ import {
   YoroiProvider,
   YoroiWallet,
 } from './cardano'
-import type {JSONMetadata} from './cardano/metadataUtils'
 import {WalletJSON} from './Wallet'
 
 export class WalletClosed extends ExtendableError {}
@@ -591,6 +590,10 @@ class WalletManager {
   async resyncWallet() {
     if (!this._wallet) return
     const wallet = this._wallet
+    const id = this._id
+
+    // resync will remove the submitted txs
+    await storage.remove(`/wallet/${id}/submittedTxs`)
     wallet.resync()
     this.save()
     await this.closeWallet()
@@ -607,6 +610,7 @@ class WalletManager {
     await this.deleteEncryptedKey('MASTER_PASSWORD')
 
     await this.closeWallet()
+    await storage.remove(`/wallet/${id}/submittedTxs`)
     await storage.remove(`/wallet/${id}/data`)
     await storage.remove(`/wallet/${id}`)
 
@@ -698,7 +702,7 @@ class WalletManager {
 
   getAddressingInfo(address: string) {
     const wallet = this.getWallet()
-    return wallet.getAddressingInfo(address)
+    return wallet.getAddressing(address)
   }
 
   asAddressedUtxo(utxos: Array<RawUtxo>) {
@@ -715,9 +719,9 @@ class WalletManager {
     utxos: Array<RawUtxo>,
     receiver: string,
     tokens: SendTokenList,
-    defaultToken: DefaultTokenEntry,
-    serverTime: Date | null | void,
-    metadata: Array<JSONMetadata> | void,
+    defaultToken: Token,
+    serverTime: Date | null | undefined,
+    metadata?: Array<TxMetadata>,
   ) {
     const wallet = this.getWallet()
     return await this.abortWhenWalletCloses(
@@ -756,9 +760,9 @@ class WalletManager {
 
   // =================== backend API =================== //
 
-  async submitTransaction(signedTx: string) {
+  async submitTransaction(signedTx: string | SignedTx, unsignedTx?: UnsignedTx) {
     const wallet = this.getWallet()
-    return await this.abortWhenWalletCloses(wallet.submitTransaction(signedTx))
+    return await this.abortWhenWalletCloses(wallet.submitTransaction(signedTx, unsignedTx))
   }
 
   async getTxsBodiesForUTXOs(request: TxBodiesRequest) {

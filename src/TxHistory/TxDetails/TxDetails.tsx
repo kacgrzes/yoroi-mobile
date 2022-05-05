@@ -9,7 +9,7 @@ import {useSelector} from 'react-redux'
 import arrowDown from '../../assets/img/chevron_down.png'
 import arrowUp from '../../assets/img/chevron_up.png'
 import {Banner, Boundary, Button, CopyButton, OfflineBanner, StatusBar, Text} from '../../components'
-import {useTokenInfo} from '../../hooks'
+import {useSubmittedTxs, useTokenInfo} from '../../hooks'
 import globalMessages from '../../i18n/global-messages'
 import {formatTokenWithSymbol} from '../../legacy/format'
 import {TransactionInfo} from '../../legacy/HistoryTransaction'
@@ -40,10 +40,12 @@ export const TxDetails = () => {
   const externalAddressIndex = useSelector(externalAddressIndexSelector)
   const wallet = useSelectedWallet()
   const transactions = useSelector(transactionsInfoSelector)
+  const submittedTxs = useSubmittedTxs({wallet})
+  const allTransactions = {...submittedTxs, ...transactions}
   const [expandedIn, setExpandedIn] = useState(false)
   const [expandedOut, setExpandedOut] = useState(false)
   const [addressDetail, setAddressDetail] = React.useState<null | string>(null)
-  const transaction = transactions[id]
+  const transaction = allTransactions[id]
 
   const {fromFiltered, toFiltered, cntOmittedTo} = getShownAddresses(
     intl,

@@ -58,6 +58,14 @@ const IndexScreen = () => {
         <TouchableOpacity onPress={crash}>
           <Text style={styles.link}>Crash</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={async () => {
+            const keys = await storage.keys('/wallet/')
+            await Promise.all(keys.map((key) => storage.remove(`/wallet/${key}/submittedTxs`)))
+          }}
+        >
+          <Text style={styles.link}>Clear Submitted Txs</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   )

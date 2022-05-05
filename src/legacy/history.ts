@@ -37,6 +37,7 @@ export const updateHistory = () => async (dispatch: Dispatch<any>) => {
     dispatch(_setSyncError(null))
   } catch (e) {
     if (e instanceof ApiHistoryError) {
+      Logger.error('Sync error API history error', e)
       // try again after wiping out state
       // (note(v-almonacid): I'm deliberately avoiding calling updateHistory
       // recursively to prevent an infinite loop in case ApiHistoryError persists)

@@ -16,11 +16,11 @@ export const mockWallet: YoroiWallet = {
   publicKeyHex: 'publicKeyHex',
 
   store: {
-    submittedTx: {
+    submittedTxs: {
       getAll: () => {
         throw new Error('Not implemented')
       },
-      getById: () => {
+      saveAll: () => {
         throw new Error('Not implemented')
       },
       removeById: () => {
@@ -52,6 +52,9 @@ export const mockWallet: YoroiWallet = {
     throw new Error('Not implemented')
   },
   signTx: () => {
+    throw new Error('Not implemented')
+  },
+  signTxLegacy: () => {
     throw new Error('Not implemented')
   },
   signTxWithLedger: () => {

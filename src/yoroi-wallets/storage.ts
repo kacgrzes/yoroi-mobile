@@ -10,24 +10,22 @@ export type WalletStorage = ReturnType<typeof walletStorage>
 export function walletStorage({walletId, db}: {walletId: string; db: YoroiStorage}) {
   isStoragePathValid(walletId, 'walletId')
 
-  const walletPath = `/wallet/${walletId}`
+  const submittedTxsKey = `/wallet/${walletId}/submittedTxs`
 
-  const submittedTxKey = `/${walletPath}/submittedTxs`
-  const submittedTx = submittedTxs(submittedTxKey, db)
+  const submittedTxs = _submittedTxs(submittedTxsKey, db)
 
   return {
-    submittedTx,
+    submittedTxs,
   }
 }
 
-export function submittedTxs(key: string, db: YoroiStorage) {
+function _submittedTxs(key: string, db: YoroiStorage) {
   async function getAll() {
     return (await db.read<SubmittedTxs>(key)) ?? []
   }
 
-  async function getById(id: SubmittedTx['id']) {
-    const data = await getAll()
-    return data.find((r) => r.id === id)
+  async function saveAll(data: SubmittedTxs) {
+    return await db.write(key, data)
   }
 
   async function removeById(id: SubmittedTx['id']) {
@@ -36,6 +34,7 @@ export function submittedTxs(key: string, db: YoroiStorage) {
     const newData = data.filter((r) => r.id !== id)
 
     await db.write(key, newData)
+    return newData
   }
 
   async function save(record: SubmittedTx) {
@@ -53,7 +52,7 @@ export function submittedTxs(key: string, db: YoroiStorage) {
 
   return {
     getAll,
-    getById,
+    saveAll,
     removeById,
     save,
   }

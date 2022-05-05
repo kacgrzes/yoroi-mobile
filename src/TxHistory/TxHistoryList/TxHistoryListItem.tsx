@@ -61,8 +61,10 @@ export const TxHistoryListItem = ({transaction}: Props) => {
   const submittedAt = formatTimeToSeconds(transaction.submittedAt)
 
   const isPending = transaction.assurance === 'PENDING'
+  const isFailed = transaction.assurance === 'FAILED'
   const isReceived = transaction.direction === 'RECEIVED'
 
+  const showAsSecondary = isPending || isFailed
   const rootBgColor = bgColorByAssurance(transaction.assurance)
 
   const availableAssets = useSelector(availableAssetsSelector)
@@ -82,11 +84,11 @@ export const TxHistoryListItem = ({transaction}: Props) => {
   const assetSymbol = getAssetDenominationOrId(defaultAsset, ASSET_DENOMINATION.SYMBOL)
 
   const amountToDisplay = amount.plus(new BigNumber(fee?.amount || 0))
-  const amountStyle = amountToDisplay
+  const amountStyle = !showAsSecondary
     ? amountToDisplay.gte(0)
       ? styles.positiveAmount
       : styles.negativeAmount
-    : styles.neutralAmount
+    : undefined
 
   const outputsToMyWallet =
     (isReceived && getTxIOMyWallet(transaction.outputs, externalAddressIndex, internalAddressIndex)) || []
@@ -101,18 +103,20 @@ export const TxHistoryListItem = ({transaction}: Props) => {
         </View>
         <View style={styles.transactionRoot}>
           <View style={styles.row}>
-            <Text small secondary={isPending}>
+            <Text small secondary={showAsSecondary}>
               {strings.direction(transaction.direction as any)}
             </Text>
             {transaction.amount ? (
               <View style={styles.amount}>
-                <Text style={amountStyle} secondary={isPending}>
+                <Text style={amountStyle} secondary={showAsSecondary}>
                   {formatTokenInteger(amountToDisplay, defaultAsset)}
                 </Text>
-                <Text small style={amountStyle} secondary={isPending}>
+                <Text small style={amountStyle} secondary={showAsSecondary}>
                   {formatTokenFractional(amountToDisplay, defaultAsset)}
                 </Text>
-                <Text style={amountStyle}>{`${utfSymbols.NBSP}${assetSymbol}`}</Text>
+                <Text style={amountStyle} secondary={showAsSecondary}>
+                  {`${utfSymbols.NBSP}${assetSymbol}`}{' '}
+                </Text>
               </View>
             ) : (
               <Text style={amountStyle}>- -</Text>
@@ -176,9 +180,6 @@ const styles = StyleSheet.create({
     color: COLORS.POSITIVE_AMOUNT,
   },
   negativeAmount: {
-    color: COLORS.BLACK,
-  },
-  neutralAmount: {
     color: COLORS.BLACK,
   },
   assuranceText: {

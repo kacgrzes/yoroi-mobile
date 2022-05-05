@@ -6,7 +6,7 @@ import {useSelector} from 'react-redux'
 
 import iconGear from '../assets/img/icon/gear.png'
 import {Boundary, Button, Icon} from '../components'
-import {useWalletName} from '../hooks'
+import {useSubmittedTxs, useWalletName} from '../hooks'
 import {UI_V2} from '../legacy/config'
 import {formatDateToSeconds} from '../legacy/format'
 import {tokenBalanceSelector, transactionsInfoSelector} from '../legacy/selectors'
@@ -34,7 +34,9 @@ export const TxHistoryNavigator = () => {
   const strings = useStrings()
   const wallet = useSelectedWallet()
   const walletName = useWalletName(wallet)
-  const transactionInfos = useSelector(transactionsInfoSelector)
+  const transactions = useSelector(transactionsInfoSelector)
+  const submittedTxs = useSubmittedTxs({wallet})
+  const allTransactions = {...submittedTxs, ...transactions}
   const tokenBalance = useSelector(tokenBalanceSelector)
   const [modalInfoState, setModalInfoState] = React.useState(false)
   const showModalInfo = () => setModalInfoState(true)
@@ -70,7 +72,7 @@ export const TxHistoryNavigator = () => {
           name="history-details"
           component={TxDetails}
           options={({route}) => ({
-            title: formatDateToSeconds(transactionInfos[route.params.id].submittedAt),
+            title: formatDateToSeconds(allTransactions[route.params.id].submittedAt),
           })}
         />
 

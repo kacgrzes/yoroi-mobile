@@ -26,10 +26,10 @@ type Props = Partial<ListProps> & {
 export const TxHistoryList = ({onScrollUp, onScrollDown, ...props}: Props) => {
   const strings = useStrings()
   const wallet = useSelectedWallet()
-  const submittedTxs = useSubmittedTxs({wallet})
+  const submittedTxs = useSubmittedTxs({wallet}, {refetchInterval: 10000})
 
   const transactionsInfo = useSelector(transactionsInfoSelector)
-  const groupedTransactions = getTransactionsByDate({...transactionsInfo, ...submittedTxs})
+  const groupedTransactions = getTransactionsByDate({...submittedTxs, ...transactionsInfo})
 
   const onScroll = useOnScroll({onScrollUp, onScrollDown})
 
