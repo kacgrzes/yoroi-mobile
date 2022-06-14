@@ -15,16 +15,7 @@ type Props = {
 export const Step2 = ({pin}: Props) => {
   const strings = useStrings()
   const navigation = useNavigation<CatalystRouteNavigation>()
-  const [countDown, setCountDown] = useState(5)
-
-  useEffect(() => {
-    let timeout
-    if (countDown > 0) {
-      timeout = setTimeout(() => setCountDown(countDown - 1), 1000)
-    }
-
-    return () => clearTimeout(timeout)
-  }, [countDown])
+  const countDown = useCountdown(5)
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeAreaView}>
@@ -95,4 +86,18 @@ const useStrings = () => {
     description: intl.formatMessage(messages.description),
     continueButton: intl.formatMessage(confirmationMessages.commonButtons.continueButton),
   }
+}
+
+const useCountdown = (start: number) => {
+  const [countDown, setCountDown] = useState(start)
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+    if (countDown > 0) {
+      timeout = setTimeout(() => setCountDown(countDown - 1), 1000)
+    }
+
+    return () => clearTimeout(timeout)
+  }, [countDown])
+
+  return countDown
 }

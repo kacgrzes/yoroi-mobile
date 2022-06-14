@@ -48,7 +48,7 @@ const KeyboardKey = ({value, onKeyDown}: KeyboardKeyProps) => {
 }
 
 type Props = {
-  onPinChange: (string) => Promise<void> | void
+  onPinChange: (pin: string) => Promise<void> | void
   pinLength: number
 }
 

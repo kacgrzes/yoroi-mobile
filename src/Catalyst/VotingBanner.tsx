@@ -56,7 +56,7 @@ export const VotingBanner = ({onPress, disabled}: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (!showCatalystBanner) return null
+  // if (!showCatalystBanner) return null
 
   const handleOnPress = () => {
     if (tokenBalance.getDefault().lt(CONFIG.CATALYST.MIN_ADA)) {

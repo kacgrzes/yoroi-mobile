@@ -7,6 +7,7 @@ import _ from 'lodash'
 import DeviceInfo from 'react-native-device-info'
 import uuid from 'uuid'
 
+import {encryptWithPassword} from '../../Catalyst/catalystCipher'
 import LocalizableError from '../../i18n/LocalizableError'
 import * as api from '../../legacy/api'
 import assert from '../../legacy/assert'
@@ -42,24 +43,14 @@ import {Entries} from '../utils'
 import {genTimeToSlot} from '../utils/timeUtils'
 import {versionCompare} from '../utils/versioning'
 import Wallet, {WalletJSON} from '../Wallet'
-import {
-  BigNum,
-  Bip32PrivateKey,
-  Bip32PublicKey,
-  hashTransaction,
-  LinearFee,
-  makeVkeyWitness,
-  PrivateKey,
-  RewardAddress,
-  StakeCredential,
-} from '.'
+import {Bip32PrivateKey, Bip32PublicKey, hashTransaction, makeVkeyWitness, RewardAddress, StakeCredential} from '.'
 import * as catalystUtils from './catalyst/catalystUtils'
 import {AddressChain, AddressGenerator} from './chain'
 import {HaskellShelleyTxSignRequest} from './HaskellShelleyTxSignRequest'
 import {MultiToken} from './MultiToken'
 import {createDelegationTx, filterAddressesByStakingKey, getDelegationStatus} from './shelley/delegationUtils'
 import {TransactionCache} from './shelley/transactionCache'
-import {newAdaUnsignedTx, signTransaction} from './shelley/transactions'
+import {signTransaction} from './shelley/transactions'
 import {NetworkId, SignedTxLegacy, WalletImplementationId, WalletInterface, YoroiProvider} from './types'
 import {yoroiUnsignedTx} from './unsignedTx'
 
@@ -638,124 +629,67 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
     return resp
   }
 
-  async createVotingRegTx(
-    utxos: Array<RawUtxo>,
-    catalystKey: string,
-    decryptedKey: string | void,
-    serverTime: Date | void,
-  ) {
+  async createVotingRegTx(masterKey: string, pin: string): Promise<YoroiUnsignedTx> {
     Logger.debug('ShelleyWallet::createVotingRegTx called')
-    try {
-      const timeToSlotFn = await genTimeToSlot(getCardanoBaseConfig(this._getNetworkConfig()))
-      const time = serverTime !== undefined ? serverTime : new Date()
-      const absSlotNumber = new BigNumber(timeToSlotFn({time}).slot)
 
-      const changeAddr = await this._getAddressedChangeAddress()
-      const addressedUtxos = this.asLegacyAddressedUtxo(utxos)
+    const utxos = this.fetchUTXOs()
+    const serverTime = await this.checkServerStatus()
+      .then((serverStatus) => serverStatus.serverTime)
+      .catch(() => new Date())
 
-      let signer: (arg: Uint8Array) => Promise<string>
-      if (decryptedKey !== undefined) {
-        assert.assert(typeof decryptedKey === 'string', 'ShelleyWallet:createVotingRegTx: decryptedKey')
-        const masterKey = await Bip32PrivateKey.fromBytes(Buffer.from(decryptedKey, 'hex'))
+    const networkConfig = this._getNetworkConfig()
 
-        const accountPvrKey = await (
-          await (await masterKey.derive(this._getPurpose())).derive(CONFIG.NUMBERS.COIN_TYPES.CARDANO)
-        ).derive(0 + CONFIG.NUMBERS.HARD_DERIVATION_START)
+    const cardanoHaskellConfig = {
+      keyDeposit: networkConfig.KEY_DEPOSIT,
+      linearFee: {
+        coefficient: networkConfig.LINEAR_FEE.COEFFICIENT,
+        constant: networkConfig.LINEAR_FEE.CONSTANT,
+      },
+      minimumUtxoVal: networkConfig.MINIMUM_UTXO_VAL,
+      poolDeposit: networkConfig.POOL_DEPOSIT,
+      networkId: networkConfig.NETWORK_ID,
+    } as const
 
-        const stakePrivateKey = await (
-          await (
-            await accountPvrKey.derive(CONFIG.NUMBERS.CHAIN_DERIVATIONS.CHIMERIC_ACCOUNT)
-          ).derive(CONFIG.NUMBERS.STAKING_KEY_INDEX)
-        ).toRawKey()
+    const stakePrivateKey = await Bip32PrivateKey.fromBytes(Buffer.from(masterKey, 'hex'))
+      .then((bip32PrivateKey) => bip32PrivateKey.derive(this._getPurpose()))
+      .then((bip32PrivateKey) => bip32PrivateKey.derive(CONFIG.NUMBERS.COIN_TYPES.CARDANO))
+      .then((bip32PrivateKey) => bip32PrivateKey.derive(0 + CONFIG.NUMBERS.HARD_DERIVATION_START))
+      .then((bip32PrivateKey) => bip32PrivateKey.derive(CONFIG.NUMBERS.CHAIN_DERIVATIONS.CHIMERIC_ACCOUNT))
+      .then((bip32PrivateKey) => bip32PrivateKey.derive(CONFIG.NUMBERS.STAKING_KEY_INDEX))
+      .then((bip32PrivateKey) => bip32PrivateKey.toRawKey())
 
-        signer = async (hashedMetadata) => {
-          return await (await stakePrivateKey.sign(hashedMetadata)).toHex()
-        }
-      } else {
-        assert.assert(this.isHW, 'ShelleyWallet::createVotingRegTx: should be a HW wallet')
-        signer = (_hashedMetadata) => Promise.resolve('0'.repeat(64 * 2))
-      }
+    const signer = (hashedMetadata: Buffer) =>
+      stakePrivateKey.sign(hashedMetadata).then((signature) => signature.toHex())
 
-      const catalystPublicKey = await (await PrivateKey.fromExtendedBytes(Buffer.from(catalystKey, 'hex'))).toPublic()
-      const votingPublicKey = Buffer.from(await catalystPublicKey.asBytes()).toString('hex')
+    const catalystPrivateKey = await catalystUtils
+      .generatePrivateKeyForCatalyst()
+      .then((bip32PrivateKey) => bip32PrivateKey.toRawKey())
 
-      const stakePublicKey = await this.getStakingKey()
-      const rewardAddress = await this.getRewardAddress()
+    const votingRegTx = await YoroiLib.cardano.createUnsignedVotingTx(
+      absSlotNumber(serverTime || new Date(), getCardanoBaseConfig(networkConfig)),
+      await catalystPrivateKey.toPublic(),
+      this.getStakingKeyPath(),
+      await this.getStakingKey(),
+      this.asAddressedUtxo(await utxos),
+      await this._getAddressedChangeAddress(),
+      cardanoHaskellConfig,
+      {},
+      absSlotNumber(serverTime || new Date(), getCardanoBaseConfig(networkConfig)).toNumber(),
+      signer,
+    )
 
-      let nonce: number
-      if (CONFIG.DEBUG.PREFILL_FORMS) {
-        if (!__DEV__) throw new Error('using debug data in non-dev env')
-        nonce = CONFIG.DEBUG.CATALYST_NONCE
-      } else {
-        nonce = absSlotNumber.toNumber()
-      }
+    const catalystSKHexEncrypted = await catalystPrivateKey.asBytes().then((bytes) => {
+      const numericPin = pin.split('').map(Number)
+      const password = Buffer.from(numericPin)
 
-      const auxiliaryData = await catalystUtils.auxiliaryDataWithRegistrationMetadata({
-        stakePublicKey,
-        catalystPublicKey,
-        rewardAddress,
-        absSlotNumber: nonce,
-        signer,
-      })
+      return encryptWithPassword(password, bytes)
+    })
 
-      const config = this._getNetworkConfig()
-      const protocolParams = {
-        keyDeposit: await BigNum.fromStr(config.KEY_DEPOSIT),
-        linearFee: await LinearFee.new(
-          await BigNum.fromStr(config.LINEAR_FEE.COEFFICIENT),
-          await BigNum.fromStr(config.LINEAR_FEE.CONSTANT),
-        ),
-        minimumUtxoVal: await BigNum.fromStr(config.MINIMUM_UTXO_VAL),
-        poolDeposit: await BigNum.fromStr(config.POOL_DEPOSIT),
-        networkId: config.NETWORK_ID,
-      }
-
-      const unsignedTx = await newAdaUnsignedTx(
-        [],
-        {
-          address: changeAddr.address,
-          addressing: changeAddr.addressing,
-        },
-        addressedUtxos,
-        absSlotNumber,
-        protocolParams,
-        [], // no delegations
-        [], // no withdrawals
-        false,
-        auxiliaryData,
-      )
-
-      const signRequest = new HaskellShelleyTxSignRequest({
-        senderUtxos: unsignedTx.senderUtxos,
-        unsignedTx: unsignedTx.txBuilder,
-        changeAddr: unsignedTx.changeAddr,
-        auxiliaryData,
-        networkSettingSnapshot: {
-          NetworkId: config.NETWORK_ID,
-          ChainNetworkId: Number.parseInt(config.CHAIN_NETWORK_ID, 10),
-          KeyDeposit: new BigNumber(config.KEY_DEPOSIT),
-          PoolDeposit: new BigNumber(config.POOL_DEPOSIT),
-        },
-        neededStakingKeyHashes: {
-          neededHashes: new Set(),
-          wits: new Set(),
-        },
-        ledgerNanoCatalystRegistrationTxSignData: this.isHW
-          ? {
-              votingPublicKey,
-              stakingKeyPath: this.getStakingKeyPath(),
-              stakingKey: Buffer.from(await stakePublicKey.asBytes()).toString('hex'),
-              rewardAddress: Buffer.from(await rewardAddress.toBytes()).toString('hex'),
-              nonce,
-            }
-          : undefined,
-      })
-      return signRequest
-    } catch (e) {
-      if (e instanceof LocalizableError || e instanceof ExtendableError) throw e
-      Logger.error(`shelley::createVotingRegTx:: ${(e as Error).message}`, e)
-      throw new CardanoError((e as Error).message)
-    }
+    return yoroiUnsignedTx({
+      unsignedTx: votingRegTx,
+      networkConfig,
+      other: {skHexEncrypted: catalystSKHexEncrypted},
+    })
   }
 
   async createWithdrawalTx(
@@ -771,6 +705,7 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
     const changeAddr = await this._getAddressedChangeAddress()
     const addressedUtxos = this.asAddressedUtxo(utxos)
     const accountState = await api.getAccountState({addresses: [rewardAddressHex]}, this._getNetworkConfig().BACKEND)
+    const networkConfig = this._getNetworkConfig()
     const withdrawalTx = await YoroiLib.cardano.createUnsignedWithdrawalTx(
       accountState,
       absSlotNumber,
@@ -785,20 +720,20 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
       changeAddr,
       {
         linearFee: {
-          coefficient: this._getNetworkConfig().LINEAR_FEE.COEFFICIENT,
-          constant: this._getNetworkConfig().LINEAR_FEE.CONSTANT,
+          coefficient: networkConfig.LINEAR_FEE.COEFFICIENT,
+          constant: networkConfig.LINEAR_FEE.CONSTANT,
         },
-        minimumUtxoVal: this._getNetworkConfig().MINIMUM_UTXO_VAL,
-        poolDeposit: this._getNetworkConfig().POOL_DEPOSIT,
-        keyDeposit: this._getNetworkConfig().KEY_DEPOSIT,
-        networkId: this._getNetworkConfig().NETWORK_ID,
+        minimumUtxoVal: networkConfig.MINIMUM_UTXO_VAL,
+        poolDeposit: networkConfig.POOL_DEPOSIT,
+        keyDeposit: networkConfig.KEY_DEPOSIT,
+        networkId: networkConfig.NETWORK_ID,
       },
       {metadata: undefined},
     )
 
     return yoroiUnsignedTx({
       unsignedTx: withdrawalTx,
-      networkConfig: this._getNetworkConfig(),
+      networkConfig,
     })
   }
 
@@ -890,3 +825,16 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
 }
 
 const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex')
+
+const absSlotNumber = (
+  time: Date,
+  config: {
+    StartAt?: number
+    GenesisDate?: string
+    SlotsPerEpoch?: number
+    SlotDuration?: number
+  }[],
+) => {
+  const timeToSlotFn = genTimeToSlot(config)
+  return new BigNumber(timeToSlotFn({time}).slot)
+}

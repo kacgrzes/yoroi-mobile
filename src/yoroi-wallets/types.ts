@@ -18,6 +18,7 @@ export type YoroiTxInfo = {
   staking?: YoroiStaking
   voting?: {
     registrations: YoroiEntries
+    skHexEncrypted?: string
   }
   hw?: {
     ledgerPayload?: SignTransactionRequest

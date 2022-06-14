@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {useFocusEffect, useNavigation} from '@react-navigation/native'
-import cryptoRandomString from 'crypto-random-string'
+import {useNavigation} from '@react-navigation/native'
 import React, {useState} from 'react'
 import {defineMessages, useIntl} from 'react-intl'
 import {Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native'
@@ -12,31 +11,16 @@ import playstoreBadge from '../assets/img/google-play-badge.png'
 import AppDownload from '../assets/img/pic-catalyst-step1.png'
 import {Button, ProgressStep, Spacer, StandardModal, Text} from '../components'
 import globalMessages, {confirmationMessages} from '../i18n/global-messages'
-import {CONFIG} from '../legacy/config'
 import {Logger} from '../legacy/logging'
 import {isDelegatingSelector} from '../legacy/selectors'
 import {CatalystRouteNavigation} from '../navigation'
 import {Actions, Row} from './components'
 
-type Props = {
-  setPin: (pin: string) => void
-}
-export const Step1 = ({setPin}: Props) => {
+export const Step1 = () => {
   const strings = useStrings()
   const navigation = useNavigation<CatalystRouteNavigation>()
   const isDelegating = useSelector(isDelegatingSelector)
   const [showModal, setShowModal] = useState<boolean>(!isDelegating)
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (CONFIG.DEBUG.PREFILL_FORMS) {
-        if (!__DEV__) throw new Error('using debug data in non-dev env')
-        setPin(CONFIG.DEBUG.CATALYST_PIN)
-      } else {
-        setPin(cryptoRandomString({length: 4, type: 'numeric'}))
-      }
-    }, [setPin]),
-  )
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeAreaView}>

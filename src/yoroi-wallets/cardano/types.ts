@@ -28,6 +28,7 @@ import {
 } from '../../types'
 import {YoroiSignedTx, YoroiUnsignedTx} from '../types'
 import Wallet from '../Wallet'
+import {CardanoTypes} from '.'
 import type {Addresses} from './chain'
 import {AddressChain} from './chain'
 import {HaskellShelleyTxSignRequest} from './HaskellShelleyTxSignRequest'
@@ -181,12 +182,7 @@ export interface WalletInterface {
     totalAmountToDelegate: MultiToken
   }>
 
-  createVotingRegTx(
-    utxos: Array<RawUtxo>,
-    catalystPrivateKey: string,
-    decryptedKey: string | void,
-    serverTime: Date | void,
-  ): Promise<HaskellShelleyTxSignRequest>
+  createVotingRegTx(decryptedKey: string, pin: string): Promise<YoroiUnsignedTx>
 
   createWithdrawalTx(
     utxos: Array<RawUtxo>,

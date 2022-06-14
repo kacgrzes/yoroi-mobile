@@ -11,21 +11,23 @@ import {Button, ProgressStep, Spacer, Text} from '../components'
 import {confirmationMessages} from '../i18n/global-messages'
 import {useWalletNavigation} from '../navigation'
 import {COLORS} from '../theme'
-import {CatalystBackupCheckModal} from './CatalystBackupCheckModal'
+import {YoroiUnsignedTx} from '../yoroi-wallets/types'
+import {CatalystBackupCheck} from './CatalystBackupCheck'
 import {Actions, Description, Title} from './components'
-import {VotingRegTxData} from './hooks'
 
 const {FlagSecure} = NativeModules
 
 type Props = {
-  votingRegTxData: VotingRegTxData
+  unsignedTx: YoroiUnsignedTx
 }
-export const Step6 = ({votingRegTxData}: Props) => {
+export const Step6 = ({unsignedTx}: Props) => {
   useBlockGoBack()
   const strings = useStrings()
   const {resetToTxHistory} = useWalletNavigation()
   const [countDown, setCountDown] = useState<number>(5)
   const [showBackupWarningModal, setShowBackupWarningModal] = useState(false)
+
+  if (!unsignedTx.voting) throw new Error('invalid transaction')
 
   useEffect(() => {
     countDown > 0 && setTimeout(() => setCountDown(countDown - 1), 1000)
@@ -73,16 +75,16 @@ export const Step6 = ({votingRegTxData}: Props) => {
 
         <Spacer height={32} />
 
-        <QRCode text={votingRegTxData.catalystSKHexEncrypted} />
+        <QRCode text={unsignedTx.voting.skHexEncrypted} />
 
         <Spacer height={32} />
 
         <Text>{strings.secretCode}</Text>
 
         <SecretCodeBox>
-          <Text style={{flex: 1}}>{votingRegTxData.catalystSKHexEncrypted}</Text>
+          <Text style={{flex: 1}}>{unsignedTx.voting.skHexEncrypted}</Text>
           <Spacer width={16} />
-          <CopyButton text={votingRegTxData.catalystSKHexEncrypted} />
+          <CopyButton text={unsignedTx.voting.skHexEncrypted} />
         </SecretCodeBox>
       </ScrollView>
 
@@ -94,7 +96,7 @@ export const Step6 = ({votingRegTxData}: Props) => {
         />
       </Actions>
 
-      <CatalystBackupCheckModal
+      <CatalystBackupCheck
         visible={showBackupWarningModal}
         onRequestClose={() => setShowBackupWarningModal(false)}
         onConfirm={() => {

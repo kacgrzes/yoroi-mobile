@@ -9,18 +9,20 @@ import {RewardAddress} from '.'
 export const yoroiUnsignedTx = async ({
   unsignedTx,
   networkConfig,
-  ledgerPayload,
-  ledgerNanoCatalystRegistrationTxSignData,
+  other: {skHexEncrypted, ledgerPayload, ledgerNanoCatalystRegistrationTxSignData} = {},
 }: {
   unsignedTx: UnsignedTx
   networkConfig: CardanoHaskellShelleyNetwork
-  ledgerPayload?: SignTransactionRequest
-  ledgerNanoCatalystRegistrationTxSignData?: {
-    votingPublicKey: string
-    stakingKeyPath: Array<number>
-    stakingKey: string
-    rewardAddress: string
-    nonce: number
+  other?: {
+    skHexEncrypted?: string
+    ledgerPayload?: SignTransactionRequest
+    ledgerNanoCatalystRegistrationTxSignData?: {
+      votingPublicKey: string
+      stakingKeyPath: Array<number>
+      stakingKey: string
+      rewardAddress: string
+      nonce: number
+    }
   }
 }) => {
   const fee = toAmounts(unsignedTx.fee.values)
@@ -47,6 +49,7 @@ export const yoroiUnsignedTx = async ({
         metadata: unsignedTx.metadata,
         networkConfig: networkConfig,
       }),
+      skHexEncrypted,
     },
     metadata: toMetadata(unsignedTx.metadata),
     unsignedTx,
@@ -183,6 +186,23 @@ const Staking = {
 const REGISTRATION_LABEL = '61284'
 
 const Voting = {
+  toVoting: async ({
+    metadata,
+    networkConfig,
+    skHexEncrypted,
+  }: {
+    metadata: UnsignedTx['metadata']
+    networkConfig: CardanoHaskellShelleyNetwork
+    skHexEncrypted: string
+  }) => {
+    return {
+      registrations: await Voting.toRegistrations({
+        metadata,
+        networkConfig,
+      }),
+      skHexEncrypted,
+    }
+  },
   toRegistrations: async ({
     metadata,
     networkConfig: {NETWORK_ID},

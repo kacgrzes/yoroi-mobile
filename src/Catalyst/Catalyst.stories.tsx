@@ -3,7 +3,7 @@ import {storiesOf} from '@storybook/react-native'
 import React from 'react'
 
 import {WithModalProps} from '../../storybook'
-import {CatalystBackupCheckModal} from './CatalystBackupCheckModal'
+import {CatalystBackupCheck} from './CatalystBackupCheck'
 import {VotingRegTxData} from './hooks'
 import {Step1} from './Step1'
 import {Step2} from './Step2'
@@ -21,6 +21,6 @@ storiesOf('Catalyst', module)
   .add('Step 6', () => <Step6 votingRegTxData={{} as unknown as VotingRegTxData} />)
   .add('CatalystBackupCheckModal', () => (
     <WithModalProps>
-      {(modalProps) => <CatalystBackupCheckModal {...modalProps} onConfirm={action('onConfirm')} />}
+      {(modalProps) => <CatalystBackupCheck {...modalProps} onConfirm={action('onConfirm')} />}
     </WithModalProps>
   ))

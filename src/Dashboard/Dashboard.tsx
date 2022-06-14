@@ -63,6 +63,17 @@ export const Dashboard = () => {
       <AccountAutoRefresher />
 
       <View style={styles.container}>
+        <VotingBanner
+          onPress={() =>
+            navigation.navigate('app-root', {
+              screen: 'catalyst-router',
+              params: {
+                screen: 'catalyst-landing',
+              },
+            })
+          }
+        />
+
         <OfflineBanner />
         {isOnline && (lastAccountStateSyncError || error) && (
           <SyncErrorBanner showRefresh={!(isFetchingAccountState || isFetchingUtxos)} />
@@ -110,18 +121,16 @@ export const Dashboard = () => {
             )}
           </Row>
 
-          {!UI_V2 && (
-            <VotingBanner
-              onPress={() =>
-                navigation.navigate('app-root', {
-                  screen: 'catalyst-router',
-                  params: {
-                    screen: 'catalyst-landing',
-                  },
-                })
-              }
-            />
-          )}
+          <VotingBanner
+            onPress={() =>
+              navigation.navigate('app-root', {
+                screen: 'catalyst-router',
+                params: {
+                  screen: 'catalyst-landing',
+                },
+              })
+            }
+          />
 
           {stakingInfo?.status === 'registered' && (
             <Row>
