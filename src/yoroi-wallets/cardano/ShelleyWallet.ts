@@ -140,9 +140,11 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
       ? CONFIG.NUMBERS.WALLET_TYPE_PURPOSE.BIP44
       : CONFIG.NUMBERS.WALLET_TYPE_PURPOSE.CIP1852
 
-    const accountKey = await (
-      await (await masterKeyPtr.derive(purpose)).derive(CONFIG.NUMBERS.COIN_TYPES.CARDANO)
-    ).derive(CONFIG.NUMBERS.ACCOUNT_INDEX + CONFIG.NUMBERS.HARD_DERIVATION_START)
+    const accountKey = await masterKeyPtr
+      .derive(purpose)
+      .then((x) => x.derive(CONFIG.NUMBERS.COIN_TYPES.CARDANO))
+      .then((x) => x.derive(CONFIG.NUMBERS.ACCOUNT_INDEX + CONFIG.NUMBERS.HARD_DERIVATION_START))
+
     const accountPubKey = await accountKey.toPublic()
     const accountPubKeyHex: string = Buffer.from(await accountPubKey.asBytes()).toString('hex')
 
@@ -634,7 +636,7 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
 
     const utxos = this.fetchUTXOs()
     const serverTime = await this.checkServerStatus()
-      .then((serverStatus) => serverStatus.serverTime)
+      .then((serverStatus) => serverStatus.serverTime || new Date())
       .catch(() => new Date())
 
     const networkConfig = this._getNetworkConfig()
@@ -678,7 +680,7 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
       signer,
     )
 
-    const catalystSKHexEncrypted = await catalystPrivateKey.asBytes().then((bytes) => {
+    const skHexEncrypted = await catalystPrivateKey.asBytes().then((bytes) => {
       const numericPin = pin.split('').map(Number)
       const password = Buffer.from(numericPin)
 
@@ -688,7 +690,7 @@ export class ShelleyWallet extends Wallet implements WalletInterface {
     return yoroiUnsignedTx({
       unsignedTx: votingRegTx,
       networkConfig,
-      other: {skHexEncrypted: catalystSKHexEncrypted},
+      other: {skHexEncrypted},
     })
   }
 

@@ -17,7 +17,7 @@ type Props = {
   pin: string
   onDone: (unsignedTx: YoroiUnsignedTx) => void
 }
-export const Step4 = ({pin, onDone}: Props) => {
+export const CreateVotingTx = ({pin, onDone}: Props) => {
   const intl = useIntl()
   const strings = useStrings()
   const wallet = useSelectedWallet()

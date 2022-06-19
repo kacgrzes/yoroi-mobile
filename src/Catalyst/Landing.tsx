@@ -16,7 +16,7 @@ import {isDelegatingSelector} from '../legacy/selectors'
 import {CatalystRouteNavigation} from '../navigation'
 import {Actions, Row} from './components'
 
-export const Step1 = () => {
+export const VotingLanding = () => {
   const strings = useStrings()
   const navigation = useNavigation<CatalystRouteNavigation>()
   const isDelegating = useSelector(isDelegatingSelector)
@@ -51,7 +51,7 @@ export const Step1 = () => {
       </ScrollView>
 
       <Actions>
-        <Button onPress={() => navigation.navigate('catalyst-generate-pin')} title={strings.continueButton} />
+        <Button onPress={() => navigation.navigate('display-pin')} title={strings.continueButton} />
       </Actions>
 
       <StandardModal

@@ -5,18 +5,18 @@ import React from 'react'
 import {WithModalProps} from '../../storybook'
 import {CatalystBackupCheck} from './CatalystBackupCheck'
 import {VotingRegTxData} from './hooks'
-import {Step1} from './Step1'
-import {Step2} from './Step2'
-import {Step3} from './Step3'
-import {Step4} from './Step4'
+import {VotingLanding} from './Step1'
+import {DisplayVotingPin} from './Step2'
+import {ConfirmVotingPin} from './Step3'
+import {CreateVotingTx} from './Step4'
 import {Step5} from './Step5'
 import {Step6} from './Step6'
 
 storiesOf('Catalyst', module)
-  .add('Step 1', () => <Step1 setPin={action('setPin')} />)
-  .add('Step 2', () => <Step2 pin="1234" />)
-  .add('Step 3', () => <Step3 pin="1234" setVotingRegTxData={action('setVotingRegTxData')} />)
-  .add('Step 4', () => <Step4 pin="1234" setVotingRegTxData={action('setVotingRegTxData')} />)
+  .add('Step 1', () => <VotingLanding setPin={action('setPin')} />)
+  .add('Step 2', () => <DisplayVotingPin pin="1234" />)
+  .add('Step 3', () => <ConfirmVotingPin pin="1234" setVotingRegTxData={action('setVotingRegTxData')} />)
+  .add('Step 4', () => <CreateVotingTx pin="1234" setVotingRegTxData={action('setVotingRegTxData')} />)
   .add('Step 5', () => <Step5 votingRegTxData={{} as unknown as VotingRegTxData} />)
   .add('Step 6', () => <Step6 votingRegTxData={{} as unknown as VotingRegTxData} />)
   .add('CatalystBackupCheckModal', () => (

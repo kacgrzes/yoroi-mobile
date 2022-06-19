@@ -12,7 +12,7 @@ import {Actions, Description, PinBox, Row, Title} from './components'
 type Props = {
   pin: string
 }
-export const Step2 = ({pin}: Props) => {
+export const DisplayVotingPin = ({pin}: Props) => {
   const strings = useStrings()
   const navigation = useNavigation<CatalystRouteNavigation>()
   const countDown = useCountdown(5)
@@ -47,7 +47,7 @@ export const Step2 = ({pin}: Props) => {
 
       <Actions>
         <Button
-          onPress={() => navigation.navigate('catalyst-confirm-pin')}
+          onPress={() => navigation.navigate('confirm-pin')}
           title={countDown !== 0 ? countDown.toString() : strings.continueButton}
           disabled={countDown !== 0}
         />

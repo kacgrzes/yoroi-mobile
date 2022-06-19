@@ -236,12 +236,12 @@ export type DashboardRoutes = {
 }
 
 export type CatalystRoutes = {
-  'catalyst-landing': undefined
-  'catalyst-generate-pin': undefined
-  'catalyst-confirm-pin': undefined
-  'catalyst-generate-trx': undefined
-  'catalyst-transaction': undefined
-  'catalyst-qr-code': undefined
+  initial: undefined
+  'display-pin': undefined
+  'confirm-pin': undefined
+  'create-voting-tx': undefined
+  'confirm-tx': undefined
+  'display-qr': undefined
 }
 export type CatalystRouteNavigation = StackNavigationProp<CatalystRoutes>
 

@@ -16,7 +16,7 @@ const PIN_LENGTH = 4
 type Props = {
   pin: string
 }
-export const Step3 = ({pin}: Props) => {
+export const ConfirmVotingPin = ({pin}: Props) => {
   const intl = useIntl()
   const strings = useStrings()
   const navigation = useNavigation<CatalystRouteNavigation>()
@@ -30,7 +30,7 @@ export const Step3 = ({pin}: Props) => {
     }
 
     if (wallet.isHW) {
-      navigation.navigate('catalyst-generate-trx')
+      navigation.navigate('create-tx')
     }
   }
 
