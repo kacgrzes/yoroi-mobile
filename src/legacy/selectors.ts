@@ -195,7 +195,6 @@ export const tosSelector = (state: State): boolean => state.appSettings.accepted
 export const isKeyboardOpenSelector = (state: State): boolean => state.isKeyboardOpen
 export const isFlawedWalletSelector = (state: State): boolean => state.isFlawedWallet
 export const isMaintenanceSelector = (state: State): boolean => state.serverStatus.isMaintenance
-export const serverStatusSelector = (state: State) => state.serverStatus
 
 /**
  * Before users can actually create a wallet, 3 steps must be completed:
